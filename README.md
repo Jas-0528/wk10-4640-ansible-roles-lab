@@ -9,14 +9,14 @@
 2. Create an ssh key
     
     ```bash
-    sudo ssh-keygen -t ed25519 -f ~/.ssh/aws
+    ssh-keygen -t ed25519 -f ~/.ssh/aws
     ```
     
 3. Run script to add the SSH key to AWS
     
     ```bash
     sudo chmod +x /scripts/import_lab_key
-    ./scripts/import_lab_key aws
+    ./scripts/import_lab_key ~/.ssh/aws
     ```
     
 4. Run Terraform commands in the terraform directory to create the two servers
@@ -42,32 +42,33 @@
 2. Refactor the configuration in "plays.yml" into the "playbook.yml" file
     
     ```bash
-     name: Setup Redis and Frontend Servers
+    - name: Setup Redis and Frontend Servers
       hosts:
         - server_role_redis_server
         - server_role_frontend_server
       become: true
       gather_facts: yes # Collect facts only once for the entire play
+    
       vars:
-    	  ansible_user: "{{ 'rocky' if 'server_role_redis_server' in group_names else 'admin' }}"
-    	# add roles
-    	roles:
-    		- role: redis_server
-    			when: "'server_role_redis_server' in group_names"
-    		- role: frontend_server
-    			when: "'server_role_frontend_server' in group_names"
-    		
+        # Set remote_user conditionally for each server role
+        ansible_user: "{{ 'rocky' if 'server_role_redis_server' in group_names else 'admin' }}"
+    
+      roles:
+        - role: redis
+          when: "'server_role_redis_server' in group_names"
+        - role: frontend
+          when: "'server_role_frontend_server' in group_names" 		
     	  
     ```
     
-3. Create the `redis_server` role
+3. Create the `redis` role
     
     ```bash
-    # initlize the role 
-    ansible-galaxy role init roles/redis_server
+    # initialize the role 
+    ansible-galaxy role init roles/redis
     ```
     
-4. Edit the `roles/redis_server/tasks/main.yml` file for the `redis_server`
+4. Edit the `roles/redis/tasks/main.yml` file for the `redis`
     
     ```bash
     ---
@@ -77,15 +78,15 @@
         state: present
     ```
     
-5. Create the `frontend_server` role
+5. Create the `frontend` role
     
     ```bash
-    # initlize the role 
-    ansible-galaxy role init roles/frontend_server
+    # initialize the role 
+    ansible-galaxy role init roles/frontend
     ```
     
-6. Move the files and templates into the `roles/frontend_server` folder
-7. Edit the `roles/frontend_server/tasks/main.yml` file for the `redis_server`
+6. Move the files into the `roles/frontend/files` folder and templates into the `roles/frontend/templates` folder
+7. Edit the `roles/frontend/tasks/main.yml` file for the `frontend`
     
     ```bash
     ---
@@ -94,19 +95,18 @@
         name: nginx
         state: present
         update_cache: yes
-    
+    # Create index.html using a template
     - name: create index.html
       ansible.builtin.template:
-        src: index.html.j2 
+        src: index.html.j2 # Ensure you have the file "index.html.j2" in your templates directory
         dest: /var/www/html/index.html
-    
+    # Create nginx configuration file
     - name: create nginx configuration
       ansible.builtin.copy:
-        src: default.conf 
+        src: default.conf # Ensure you have the file "default.conf" in your files directory
         dest: /etc/nginx/sites-available/default
-      # handler to restart nginx when change is made to system
-      notify: restart nginx
-    
+      notify: reload nginx
+    # Enable nginx configuration by creating a symlink
     - name: enable nginx configuration
       ansible.builtin.file:
         src: /etc/nginx/sites-available/default
@@ -114,14 +114,14 @@
         state: link
     ```
     
-8. Create the handler by editing `roles/frontend_server/handlers/main.yml`
+8. Create the handler by editing `roles/frontend/handlers/main.yml`
     
     ```bash
     ---
-    - name: restart nginx
+    - name: reload nginx
       ansible.builtin.service:
         name: nginx
-        state: restarted
+        state: reloaded
     ```
     
 9. Run the ansible configuration
@@ -129,4 +129,4 @@
     ```bash
     ansible-playbook -i inventory/aws_ec2.yml playbook.yml
     ```
-![Alt text](Frontend_Server.png)
+![Alt text](server-img.png)

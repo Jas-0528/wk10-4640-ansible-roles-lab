@@ -125,9 +125,8 @@
     ```
     
 9. Run the ansible configuration
-
-![Alt text](Frontend_Server.png)
     
     ```bash
     ansible-playbook -i inventory/aws_ec2.yml playbook.yml
     ```
+![Alt text](Frontend_Server.png)

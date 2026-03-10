@@ -4,13 +4,11 @@
     name: nginx
     state: present
     update_cache: yes
-  notify: reload nginx
 # Create index.html using a template
 - name: create index.html
   ansible.builtin.template:
     src: index.html.j2 # Ensure you have the file "index.html.j2" in your templates directory
     dest: /var/www/html/index.html
-  notify: reload nginx
 # Create nginx configuration file
 - name: create nginx configuration
   ansible.builtin.copy:
@@ -23,4 +21,3 @@
     src: /etc/nginx/sites-available/default
     dest: /etc/nginx/sites-enabled/default
     state: link
-  notify: reload nginx
